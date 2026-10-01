@@ -126,7 +126,7 @@ describe('Pruebas Unitarias - Controlador de Usuarios', () => {
     await UsuarioController.login({ body: { email: 'admin@empresa.cl', password: '123456' } }, res);
 
     expect(res.json).toHaveBeenCalledWith({
-      token: 'fake-jwt-token',
+      token: expect.stringMatching(/^[^.]+\.[^.]+\.[^.]+$/),
       user: { id: 1, email: 'admin@empresa.cl', role: 'ADMIN', name: 'Admin' }
     });
   });
@@ -145,7 +145,7 @@ describe('Pruebas Unitarias - Controlador de Usuarios', () => {
     const res = responseMock();
     jest.spyOn(Usuario, 'autenticar').mockRejectedValue(new Error('db error'));
 
-    await UsuarioController.login({ body: {} }, res);
+    await UsuarioController.login({ body: { email: 'admin@empresa.cl', password: '123456' } }, res);
 
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.json).toHaveBeenCalledWith({ error: 'Error interno del servidor' });
@@ -155,7 +155,7 @@ describe('Pruebas Unitarias - Controlador de Usuarios', () => {
     const res = responseMock();
     jest.spyOn(Usuario, 'crear').mockResolvedValue([]);
 
-    await UsuarioController.create({ body: { name: 'Luis', email: 'luis@empresa.cl' } }, res);
+    await UsuarioController.create({ body: { name: 'Luis', email: 'luis@empresa.cl', password: '123456' } }, res);
 
     expect(Usuario.crear).toHaveBeenCalledWith('Luis', 'luis@empresa.cl', '123456', 2);
     expect(res.status).toHaveBeenCalledWith(201);

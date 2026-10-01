@@ -34,10 +34,134 @@ DB_HOST=localhost
 DB_USER=root
 DB_PASSWORD=tu_contrasena
 DB_NAME=control_asistencia_db
+DB_PORT=3306
+DB_CONNECTION_LIMIT=10
 PORT=3000
+CLIENT_URL=http://localhost:5173
+JWT_SECRET=una-clave-larga-y-aleatoria
 ```
 
 El archivo `server/.env` no debe subirse al repositorio.
+
+`DB_PASSWORD` debe contener la contrasena real del usuario de MySQL. Por
+ejemplo, si la contrasena configurada para `root` es `admin123`, usa:
+
+```env
+DB_PASSWORD=admin123
+```
+
+### Crear el primer usuario administrador
+
+La ruta `POST /api/users` requiere un token de administrador, por lo que el
+primer administrador debe insertarse directamente en MySQL. La contrasena no
+se guarda en texto plano: primero genera un hash bcrypt desde la carpeta
+`server`:
+
+```powershell
+cd "C:\ruta\al\proyecto\control_asistencia\server"
+npm install
+node --input-type=module -e "import bcrypt from 'bcryptjs'; console.log(await bcrypt.hash('Admin123!', 10))"
+```
+
+El comando imprime un valor que comienza con `$2b$10$`. Copia el valor
+completo y reemplaza `PEGA_AQUI_EL_HASH` en la siguiente consulta:
+
+```sql
+USE control_asistencia_db;
+
+INSERT INTO usuarios
+  (id_rol, nombre, email, password_hash, activo)
+VALUES
+  (1, 'Administrador Inicial', 'admin@correo.com', 'PEGA_AQUI_EL_HASH', 1);
+```
+
+El rol `1` corresponde a `Administrador` y se crea automáticamente al
+ejecutar `db_control_asistencias.sql`. Puedes confirmar la insercion con:
+
+```sql
+SELECT id_usuario, id_rol, nombre, email, activo
+FROM usuarios
+WHERE email = 'admin@correo.com';
+```
+
+Si el correo ya existe, no repitas el `INSERT`; utiliza ese usuario o cambia
+el correo por uno nuevo. La contrasena utilizada en el ejemplo es
+`Admin123!`; cambiala por una contrasena segura en un entorno real.
+
+### Iniciar sesion y obtener el token
+
+Inicia el backend desde la carpeta raiz o desde `server`:
+
+```powershell
+npm run dev
+```
+
+En Postman crea una solicitud:
+
+```http
+POST http://localhost:3000/api/users/login
+Content-Type: application/json
+```
+
+Con este cuerpo:
+
+```json
+{
+  "email": "admin@correo.com",
+  "password": "Admin123!"
+}
+```
+
+La respuesta `200 OK` contiene el token:
+
+```json
+{
+  "token": "eyJ...",
+  "user": {
+    "id": 1,
+    "email": "admin@correo.com",
+    "role": "ADMIN",
+    "name": "Administrador Inicial"
+  }
+}
+```
+
+Para crear otros usuarios desde Postman, utiliza el valor de `token` en el
+header `Authorization`:
+
+```http
+Authorization: Bearer TU_TOKEN
+```
+
+Y realiza una solicitud `POST` a `http://localhost:3000/api/users` con:
+
+```json
+{
+  "nombre": "Segundo Usuario",
+  "email": "usuario@correo.com",
+  "password": "OtraContraseñaSegura123!",
+  "role": "USER"
+}
+```
+
+Para medir el tiempo de las consultas SQL durante una revisión de rendimiento,
+activa temporalmente estas opciones en `server/.env`:
+
+```env
+DB_QUERY_TIMING=true
+DB_SLOW_QUERY_MS=500
+```
+
+La primera registra cada consulta y la segunda registra también las consultas
+que superen el umbral indicado, aunque el registro detallado esté desactivado.
+
+### Seguridad de los reportes
+
+Los reportes están protegidos en el backend con autenticación y autorización para
+el rol `ADMIN`. La aplicación usa actualmente un token firmado con HMAC propio
+para el prototipo; todavía no implementa un proveedor JWT estándar ni rotación
+de claves. Para producción se debe reemplazar esta solución por JWT validado
+con una clave administrada de forma segura y con expiración del token.
 
 ## Configuracion del cliente
 

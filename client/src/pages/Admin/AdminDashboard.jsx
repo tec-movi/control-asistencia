@@ -2,8 +2,8 @@ import { useEffect, useState, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../../context/authContextValue';
 import { 
-  LogOut, Search, ChevronDown, Download, Calendar, Users,
-  LayoutDashboard, Settings, UserPlus, Pencil, Trash2, UserRoundCheck
+  LogOut, ChevronDown, Calendar, Users,
+  LayoutDashboard, UserPlus, Pencil, Trash2, UserRoundCheck
 } from 'lucide-react';
 import { getReportsService } from '../../services/attendanceService';
 import { getUsersService, createUserService, updateUserService, deleteUserService, activateUserService } from '../../services/userService';
@@ -12,12 +12,15 @@ import '../../assets/css/LiquidGlass.css';
 export const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('users');
   const [isReportsOpen, setIsReportsOpen] = useState(false);
-  const [activeReport, setActiveReport] = useState('late');
+  const [activeReport, setActiveReport] = useState('atrasos');
   const [reports, setReports] = useState([]);
+  const [isReportsLoading, setIsReportsLoading] = useState(true);
+  const [reportDate, setReportDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [usersList, setUsersList] = useState([]);
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [formData, setFormData] = useState({ name: '', email: '', role: 'USER', password: '' });
+  const [error, setError] = useState('');
 
   const { logout } = useContext(AuthContext);
   const navigate = useNavigate();
@@ -26,18 +29,35 @@ export const AdminDashboard = () => {
     setUsersList(data);
     return data;
   };
+  const showRequestError = (requestError, message) => {
+    console.error(message, requestError);
+    setError(message);
+  };
 
   useEffect(() => {
-    fetchUsers().catch((error) => console.error("Error cargando usuarios", error));
+    fetchUsers().catch((requestError) => showRequestError(
+      requestError,
+      'No se pudo cargar la lista de usuarios.',
+    ));
   }, []);
 
   useEffect(() => {
+    if (activeTab !== 'reports') return undefined;
+
     let active = true;
-    getReportsService(activeReport).then((reportData) => {
-      if (active) setReports(reportData);
-    });
+    const date = activeReport === 'inasistencias' ? reportDate : undefined;
+    getReportsService(activeReport, date)
+      .then((reportData) => {
+        if (active) setReports(reportData);
+      })
+      .catch((requestError) => {
+        if (active) showRequestError(requestError, 'No se pudo cargar el reporte seleccionado.');
+      })
+      .finally(() => {
+        if (active) setIsReportsLoading(false);
+      });
     return () => { active = false; };
-  }, [activeReport]);
+  }, [activeTab, activeReport, reportDate]);
 
   const handleLogout = () => {
     logout();
@@ -107,22 +127,29 @@ export const AdminDashboard = () => {
   };
 
   const selectReport = (reportType) => {
+    setIsReportsLoading(true);
     setActiveReport(reportType);
     setActiveTab('reports');
   };
 
+  const openReports = () => {
+    setIsReportsLoading(true);
+    setActiveTab('reports');
+    setIsReportsOpen(true);
+  };
+
   const reportConfig = {
-    late: {
+    atrasos: {
       code: 'RE-01', statusClass: 'badge-warning', statusLabel: 'Atraso',
       title: 'Reporte de Atrasos', description: 'Entradas registradas después de las 09:30 am',
       totalLabel: 'Total atrasos', averageLabel: 'Promedio atraso', averageValue: '14 min', timeLabel: 'Hora de Entrada',
     },
-    earlyDeparture: {
+    'salidas-anticipadas': {
       code: 'RE-02', statusClass: 'badge-alert', statusLabel: 'Salida anticipada',
       title: 'Reporte de Salidas Anticipadas', description: 'Salidas registradas antes del término de la jornada',
       totalLabel: 'Total salidas anticipadas', averageLabel: 'Promedio salida', averageValue: '16:40 pm', timeLabel: 'Hora de Salida',
     },
-    absence: {
+    inasistencias: {
       code: 'RE-03', statusClass: 'badge-danger', statusLabel: 'Inasistencia',
       title: 'Reporte de Inasistencias', description: 'Trabajadores sin registro de asistencia',
       totalLabel: 'Total inasistencias', averageLabel: 'Días registrados', averageValue: '1 día', timeLabel: null,
@@ -146,7 +173,7 @@ export const AdminDashboard = () => {
           </button>
           <button
             className={`nav-item ${activeTab === 'reports' ? 'active' : ''}`}
-            onClick={() => setIsReportsOpen(!isReportsOpen)}
+            onClick={openReports}
           >
             <Calendar size={18}/>
             <span className="nav-item-label">Reportes</span>
@@ -154,9 +181,9 @@ export const AdminDashboard = () => {
           </button>
           {isReportsOpen && (
             <div className="reports-submenu">
-              <button className={`submenu-item ${activeReport === 'late' && activeTab === 'reports' ? 'active' : ''}`} onClick={() => selectReport('late')}>Atrasos</button>
-              <button className={`submenu-item ${activeReport === 'earlyDeparture' && activeTab === 'reports' ? 'active' : ''}`} onClick={() => selectReport('earlyDeparture')}>Salidas anticipadas</button>
-              <button className={`submenu-item ${activeReport === 'absence' && activeTab === 'reports' ? 'active' : ''}`} onClick={() => selectReport('absence')}>Inasistencias</button>
+              <button className={`submenu-item ${activeReport === 'atrasos' && activeTab === 'reports' ? 'active' : ''}`} onClick={() => selectReport('atrasos')}>Atrasos</button>
+              <button className={`submenu-item ${activeReport === 'salidas-anticipadas' && activeTab === 'reports' ? 'active' : ''}`} onClick={() => selectReport('salidas-anticipadas')}>Salidas anticipadas</button>
+              <button className={`submenu-item ${activeReport === 'inasistencias' && activeTab === 'reports' ? 'active' : ''}`} onClick={() => selectReport('inasistencias')}>Inasistencias</button>
             </div>
           )}
           <div className="nav-spacer"></div>
@@ -166,6 +193,7 @@ export const AdminDashboard = () => {
 
       {/* Main Area */}
       <div className="admin-main">
+        {error && <p role="alert" className="error-message">{error}</p>}
         {activeTab === 'users' && (
           <>
             <div className="page-header">
@@ -221,7 +249,57 @@ export const AdminDashboard = () => {
           </>
         )}
 
-        {/* ... Lógica de la pestaña de reportes (sin cambios) ... */}
+        {activeTab === 'reports' && (
+          <section>
+            <div className="page-header">
+              <div>
+                <h1 className="h1-text">{selectedReport.title}</h1>
+                <p>{selectedReport.description}</p>
+              </div>
+              {activeReport === 'inasistencias' && (
+                <label className="input-group" style={{ width: '220px', marginBottom: 0 }}>
+                  <span className="input-label">Fecha del reporte</span>
+                  <input
+                    type="date"
+                    className="glass-input"
+                    value={reportDate}
+                    onChange={(event) => {
+                      setIsReportsLoading(true);
+                      setReportDate(event.target.value);
+                    }}
+                  />
+                </label>
+              )}
+            </div>
+            <div className="glass-card table-container mt-4">
+              <table className="glass-table">
+                <thead>
+                  <tr><th>ID</th><th>Nombre</th><th>Correo</th><th>Fecha</th></tr>
+                </thead>
+                <tbody>
+                  {isReportsLoading ? (
+                    Array.from({ length: 3 }, (_, index) => (
+                      <tr key={`loading-${index}`} aria-label="Cargando reporte">
+                        <td colSpan="4"><span className="report-skeleton" /></td>
+                      </tr>
+                    ))
+                  ) : reports.length === 0 ? (
+                    <tr><td colSpan="4">No existen resultados</td></tr>
+                  ) : reports.map((report) => (
+                    <tr key={report.id ?? report.id_usuario}>
+                      <td>{report.id_usuario ?? report.id}</td>
+                      <td>{report.nombre}</td>
+                      <td>{report.email}</td>
+                      <td>{(report.fecha ?? report.fechaHora)
+                        ? new Date(report.fecha ?? report.fechaHora).toLocaleString('es-CL')
+                        : 'Sin registro'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
       </div>
 
       {/* Modal Crear / Editar Usuario */}

@@ -5,7 +5,9 @@ export const markAttendanceService = async (userId, type) => {
   return response.data;
 };
 
-export const getReportsService = async (reportType) => {
-  const response = await api.get(`/api/attendance/reports/${reportType}`).catch(() => ({ data: [] }));
+export const getReportsService = async (reportType, date) => {
+  const response = await api.get(`/api/attendance/reports/${reportType}`, {
+    params: date ? { date } : undefined,
+  });
   return response.data;
 };

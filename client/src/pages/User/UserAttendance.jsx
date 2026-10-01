@@ -23,17 +23,30 @@ export const UserAttendance = () => {
 
   const handleAttendance = async (type) => {
     setIsLoading(true);
-    const userId = user?.id || 2; 
-    const response = await markAttendanceService(userId, type);
-    
-    setModalData({
-      isOpen: true,
-      title: '¡Registro exitoso!',
-      message: response.message,
-      type: type,
-      timestamp: response.timestamp
-    });
-    setIsLoading(false);
+    try {
+      if (!user?.id) {
+        throw new Error('La sesión no contiene un usuario válido');
+      }
+
+      const response = await markAttendanceService(user.id, type);
+      setModalData({
+        isOpen: true,
+        title: '¡Registro exitoso!',
+        message: response.message,
+        type,
+        timestamp: response.data?.fechaHora,
+      });
+    } catch (error) {
+      setModalData({
+        isOpen: true,
+        title: 'No se pudo registrar la asistencia',
+        message: error.response?.data?.error || error.message || 'Intenta nuevamente.',
+        type,
+        timestamp: null,
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleLogout = () => {
@@ -98,7 +111,12 @@ export const UserAttendance = () => {
               <div className="record-details">
                 <div className="detail-row"><span>Acción:</span><span>{modalData.type}</span></div>
                 <div className="detail-row"><span>Mensaje:</span><span>{modalData.message}</span></div>
-                <div className="detail-row"><span>Fecha/Hora:</span><span>{new Date(modalData.timestamp).toLocaleString()}</span></div>
+                {modalData.timestamp && (
+                  <div className="detail-row">
+                    <span>Fecha/Hora:</span>
+                    <span>{new Date(modalData.timestamp).toLocaleString('es-CL')}</span>
+                  </div>
+                )}
               </div>
             </div>
             <div className="modal-actions">

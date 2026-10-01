@@ -1,7 +1,6 @@
 import db from '../config/Database.js';
 
 class Asistencia {
-  // Constructor para instanciar el objeto tal como pide la imagen conceptual
   constructor({ id, usuario, tipoMarca, fechaHora }) {
     this.id = id;
     this.usuario = usuario;
@@ -9,21 +8,55 @@ class Asistencia {
     this.fechaHora = fechaHora;
   }
 
-  // Método estático para registrar en la DB y devolver la instancia
   static async registrar(idUsuario, tipoMarca) {
-    // Se define la query previniendo inyección SQL (igual a la imagen)
     const sql = 'INSERT INTO asistencias (id_usuario, tipo_marca) VALUES (?, ?)';
-    
-    // Se guarda el resultado para recuperar el ID ingresado
     const result = await db.query(sql, [idUsuario, tipoMarca]);
 
-    // Se instancia una nueva Asistencia con los datos correspondientes (idéntico a la imagen)
     return new Asistencia({
       id: result.insertId, // ID autogenerado por MySQL
       usuario: idUsuario,
       tipoMarca: tipoMarca,
       fechaHora: new Date()
     });
+  }
+
+  static async obtenerAtrasos() {
+    return db.query(`
+      SELECT a.id_asistencia AS id, a.id_usuario, u.nombre, u.email,
+             a.fecha_hora AS fechaHora, a.fecha_hora AS fecha
+      FROM asistencias a
+      JOIN usuarios u ON u.id_usuario = a.id_usuario
+      WHERE a.tipo_marca = 'ENTRADA' AND a.hora_marca > '09:30:00'
+      ORDER BY a.fecha_hora DESC
+    `);
+  }
+
+  static async obtenerSalidasAnticipadas() {
+    return db.query(`
+      SELECT a.id_asistencia AS id, a.id_usuario, u.nombre, u.email,
+             a.fecha_hora AS fechaHora, a.fecha_hora AS fecha
+      FROM asistencias a
+      JOIN usuarios u ON u.id_usuario = a.id_usuario
+      WHERE a.tipo_marca = 'SALIDA' AND a.hora_marca < '17:30:00'
+      ORDER BY a.fecha_hora DESC
+    `);
+  }
+
+  static async obtenerInasistencias(fecha) {
+    return db.query(`
+      SELECT u.id_usuario, u.nombre, u.email, ? AS fecha
+      FROM usuarios u
+      WHERE u.activo = 1
+        AND NOT EXISTS (
+          SELECT 1
+          FROM asistencias a
+          WHERE a.id_usuario = u.id_usuario
+            AND a.tipo_marca IN ('ENTRADA', 'SALIDA')
+            AND a.fecha_hora >= CONCAT(?, ' 00:00:00')
+            AND a.fecha_hora < DATE_ADD(CONCAT(?, ' 00:00:00'), INTERVAL 1 DAY)
+        )
+      ORDER BY u.nombre
+    `, [fecha, fecha, fecha]);
   }
 }
 

@@ -10,15 +10,11 @@ class Usuario {
     
     // Obtenemos los resultados
     const filas = await db.query(sql, [email]);
-    console.log("A. Usuarios encontrados en DB con ese email:", filas.length);
-
     const usuarioEncontrado = filas[0];
     
     if (usuarioEncontrado) {
       // Verificamos si la contraseña coincide
       const claveCorrecta = await bcrypt.compare(password, usuarioEncontrado.password_hash);
-      console.log("B. ¿La contraseña encriptada coincide?:", claveCorrecta);
-      
       if (claveCorrecta) {
         return usuarioEncontrado;
       }
@@ -67,10 +63,7 @@ class Usuario {
     }
 
     const sqlBaja = `INSERT INTO usuarios_desactivados (id_usuario, id_administrador, motivo)
-                     VALUES (?, ?, ?)
-                     ON DUPLICATE KEY UPDATE
-                       id_administrador = VALUES(id_administrador),
-                       motivo = VALUES(motivo)`;
+                     VALUES (?, ?, ?)`;
     return await db.query(sqlBaja, [idUsuario, idAdmin, 'Eliminado por administrador']);
   }
 
