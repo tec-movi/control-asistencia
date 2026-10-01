@@ -155,6 +155,10 @@ DB_SLOW_QUERY_MS=500
 La primera registra cada consulta y la segunda registra también las consultas
 que superen el umbral indicado, aunque el registro detallado esté desactivado.
 
+Si la base de datos ya existía antes de agregar el índice de reportes, ejecuta
+el script [migrations/001_add_attendance_time_index.sql](./migrations/001_add_attendance_time_index.sql)
+una sola vez antes de iniciar el backend.
+
 ### Seguridad de los reportes
 
 Los reportes están protegidos en el backend con autenticación y autorización para
