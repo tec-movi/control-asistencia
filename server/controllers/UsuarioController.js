@@ -1,6 +1,11 @@
 import Usuario from '../models/Usuario.js';
 import { createToken } from '../middleware/auth.js';
 
+const parseUserId = (value) => {
+  const id = Number(value);
+  return Number.isInteger(id) && id > 0 ? id : null;
+};
+
 class UsuarioController {
   // 1. Iniciar sesión (Login)
   async login(req, res) {
@@ -53,10 +58,17 @@ class UsuarioController {
 
       const idRol = role === 'ADMIN' ? 1 : 2;
       
-      await Usuario.crear(nombreFinal, emailFinal, password, idRol);
-      res.status(201).json({ success: true, message: 'Usuario creado exitosamente' });
+      const result = await Usuario.crear(nombreFinal, emailFinal, password, idRol);
+      res.status(201).json({
+        success: true,
+        message: 'Usuario creado exitosamente',
+        id: result.insertId,
+      });
     } catch (error) {
       console.error("Error al crear usuario:", error);
+      if (error.code === 'ER_DUP_ENTRY') {
+        return res.status(409).json({ error: 'El correo electrónico ya está registrado' });
+      }
       res.status(500).json({ error: 'Error al intentar guardar el usuario en la base de datos' });
     }
   }
@@ -73,21 +85,40 @@ class UsuarioController {
       }
       
       const idRol = role === 'ADMIN' ? 1 : 2;
+      const userId = parseUserId(req.params.id);
+
+      if (!userId) {
+        return res.status(400).json({ error: 'El identificador de usuario no es válido' });
+      }
       
-      await Usuario.modificar(req.params.id, nombreFinal, emailFinal, idRol, password);
+      const result = await Usuario.modificar(userId, nombreFinal, emailFinal, idRol, password);
+      if (!result.affectedRows) {
+        return res.status(404).json({ error: 'El usuario no existe' });
+      }
       res.status(200).json({ success: true, message: 'Usuario actualizado correctamente' });
     } catch (error) {
       console.error("Error al actualizar usuario:", error);
+      if (error.code === 'ER_DUP_ENTRY') {
+        return res.status(409).json({ error: 'El correo electrónico ya está registrado' });
+      }
       res.status(500).json({ error: 'Error al modificar el usuario' });
     }
   }
   // 5. Eliminar (desactivar) un usuario
   async delete(req, res) {
     try {
-      // Para este prototipo, simulamos que el Admin que ejecuta la acción es el ID 1
-      const idAdminEjecutor = req.user?.id || 1;
+      const userId = parseUserId(req.params.id);
+      const idAdminEjecutor = parseUserId(req.user?.id);
+
+      if (!userId || !idAdminEjecutor) {
+        return res.status(400).json({ error: 'El identificador de usuario no es válido' });
+      }
+
+      if (userId === idAdminEjecutor) {
+        return res.status(400).json({ error: 'No puedes dar de baja tu propia cuenta' });
+      }
       
-      const result = await Usuario.eliminar(req.params.id, idAdminEjecutor);
+      const result = await Usuario.eliminar(userId, idAdminEjecutor);
 
       if (!result) {
         return res.status(404).json({ error: 'El usuario ya está inactivo o no existe' });
@@ -102,7 +133,13 @@ class UsuarioController {
 
   async activate(req, res) {
     try {
-      const result = await Usuario.activar(req.params.id);
+      const userId = parseUserId(req.params.id);
+
+      if (!userId) {
+        return res.status(400).json({ error: 'El identificador de usuario no es válido' });
+      }
+
+      const result = await Usuario.activar(userId);
 
       if (!result.affectedRows) {
         return res.status(404).json({ error: 'El usuario no está inactivo o no existe' });

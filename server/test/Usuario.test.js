@@ -165,17 +165,17 @@ describe('Pruebas Unitarias - Controlador de Usuarios', () => {
     const resUpdate = responseMock();
     const resList = responseMock();
     const resDelete = responseMock();
-    jest.spyOn(Usuario, 'modificar').mockResolvedValue([]);
+    jest.spyOn(Usuario, 'modificar').mockResolvedValue({ affectedRows: 1 });
     jest.spyOn(Usuario, 'obtenerTodos').mockResolvedValue([{ id: 2 }]);
     jest.spyOn(Usuario, 'eliminar').mockResolvedValue({ affectedRows: 1 });
 
     await UsuarioController.update({ params: { id: '2' }, body: { nombre: 'Eva', email: 'eva@empresa.cl', role: 'ADMIN' } }, resUpdate);
     await UsuarioController.getAll({}, resList);
-    await UsuarioController.delete({ params: { id: '2' } }, resDelete);
+    await UsuarioController.delete({ params: { id: '2' }, user: { id: 1 } }, resDelete);
 
-    expect(Usuario.modificar).toHaveBeenCalledWith('2', 'Eva', 'eva@empresa.cl', 1, undefined);
+    expect(Usuario.modificar).toHaveBeenCalledWith(2, 'Eva', 'eva@empresa.cl', 1, undefined);
     expect(resList.json).toHaveBeenCalledWith([{ id: 2 }]);
-    expect(Usuario.eliminar).toHaveBeenCalledWith('2', 1);
+    expect(Usuario.eliminar).toHaveBeenCalledWith(2, 1);
     expect(resUpdate.status).toHaveBeenCalledWith(200);
     expect(resDelete.status).toHaveBeenCalledWith(200);
   });

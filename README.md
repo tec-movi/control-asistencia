@@ -167,6 +167,22 @@ para el prototipo; todavía no implementa un proveedor JWT estándar ni rotació
 de claves. Para producción se debe reemplazar esta solución por JWT validado
 con una clave administrada de forma segura y con expiración del token.
 
+### Reglas de negocio implementadas
+
+- **CA-01:** `POST /api/attendance` registra la marca con la fecha y hora actual
+  de la base de datos. El usuario autenticado es el propietario de la marca.
+- **RE-01:** `GET /api/attendance/reports/atrasos` incluye entradas posteriores
+  a las `09:30:00`.
+- **RE-02:** `GET /api/attendance/reports/salidas-anticipadas` incluye salidas
+  anteriores a las `17:30:00`.
+- **RE-03:** `GET /api/attendance/reports/inasistencias?date=YYYY-MM-DD`
+  identifica usuarios activos sin entrada ni salida en la fecha indicada. Los
+  fines de semana devuelven un resultado vacío porque no son días laborables.
+- **GU-01, GU-02 y GU-03:** las rutas de creación, modificación, baja lógica y
+  reactivación de usuarios requieren autenticación con rol `ADMIN`. Los correos
+  duplicados responden `409` y no se permite que un administrador desactive su
+  propia cuenta.
+
 ## Configuracion del cliente
 
 Copia `client/.env.example` como `client/.env` si necesitas cambiar la URL de la API:

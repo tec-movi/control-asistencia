@@ -9,6 +9,24 @@ class Asistencia {
   }
 
   static async registrar(idUsuario, tipoMarca) {
+    if (tipoMarca === 'SALIDA') {
+      const [entrada] = await db.query(`
+        SELECT id_asistencia
+        FROM asistencias
+        WHERE id_usuario = ?
+          AND tipo_marca = 'ENTRADA'
+          AND fecha_hora >= CURDATE()
+          AND fecha_hora < DATE_ADD(CURDATE(), INTERVAL 1 DAY)
+        LIMIT 1
+      `, [idUsuario]);
+
+      if (!entrada) {
+        const error = new Error('No existe una entrada registrada para el día actual');
+        error.code = 'ATTENDANCE_ENTRY_REQUIRED';
+        throw error;
+      }
+    }
+
     const sql = 'INSERT INTO asistencias (id_usuario, tipo_marca) VALUES (?, ?)';
     const result = await db.query(sql, [idUsuario, tipoMarca]);
 
